@@ -26,6 +26,13 @@
 - Code is commented and documented
 - Git repository can be initialized for version control
 
+## 2024-06-07: Formatting Toolbar & Dark Mode
+- Added a formatting toolbar above the markdown editor for quick insertion of bold, italic, heading, list, inline code, and code block markdown syntax
+- Implemented a light/dark mode toggle with a sun/moon button in the top right
+- Dark mode uses comfortable, high-contrast colors for a pleasant writing experience
+- Theme preference is remembered using localStorage
+- All changes committed and pushed to GitHub for progress tracking
+
 ---
 
 *Phase 1 complete! Ready to iterate, experiment, and expand.* 

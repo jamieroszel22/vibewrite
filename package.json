@@ -1,0 +1,24 @@
+{
+  "name": "vibewright",
+  "version": "1.0.0",
+  "description": "A modern, intuitive markdown authoring app with live preview and local LLM-powered drafting via Ollama.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jamieroszel22/vibewrite.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jamieroszel22/vibewrite/issues"
+  },
+  "homepage": "https://github.com/jamieroszel22/vibewrite#readme",
+  "devDependencies": {
+    "electron": "^28.0.0"
+  }
+}
