@@ -49,6 +49,10 @@
   - Auto-updates
   - Window state management
 
+## Improved toolbar formatting logic: Bold and Italic buttons now trim leading/trailing spaces from selection, ensuring valid markdown even when double-clicking words (which selects trailing spaces). This makes formatting more intuitive and robust.
+## Layout updated so LLM controls are always visible without scrolling; responsive design for different screen sizes.
+## Theme toggle (light/dark) now works reliably and remembers user preference.
+
 ---
 
 *Phase 1 complete! Ready to iterate, experiment, and expand.*

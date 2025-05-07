@@ -9,7 +9,7 @@
 <body>
     <button id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">🌙</button>
     <div class="container">
-        <div class="editor-pane">
+        <div class="editor-container">
             <h2>Markdown Editor</h2>
             <div class="toolbar">
                 <button type="button" class="toolbar-btn" data-action="bold" title="Bold (Ctrl+B)"><b>B</b></button>
@@ -19,11 +19,11 @@
                 <button type="button" class="toolbar-btn" data-action="inline-code" title="Inline Code">&lt;/&gt;</button>
                 <button type="button" class="toolbar-btn" data-action="code-block" title="Code Block">[code]</button>
             </div>
-            <textarea id="markdown-input" rows="25" placeholder="Type your markdown here..."></textarea>
+            <textarea id="editor" rows="25" placeholder="Start writing your markdown here..."></textarea>
         </div>
-        <div class="preview-pane">
+        <div class="preview-container">
             <h2>Preview</h2>
-            <div id="markdown-preview"></div>
+            <div id="preview"></div>
         </div>
     </div>
 

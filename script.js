@@ -1,24 +1,78 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const { ipcRenderer } = require('electron');
+    const marked = require('marked');
+    const DOMPurify = require('dompurify');
+
+    let currentFilePath = null;
+    let isDirty = false;
+
     // DOM Elements
-    const markdownInput = document.getElementById('markdown-input');
-    const markdownPreview = document.getElementById('markdown-preview');
+    const editor = document.getElementById('editor');
+    const preview = document.getElementById('preview');
     const draftPromptInput = document.getElementById('draft-prompt');
     const ollamaModelInput = document.getElementById('ollama-model');
     const draftButton = document.getElementById('draft-button');
     const llmStatus = document.getElementById('llm-status');
+    const toolbar = document.querySelector('.toolbar');
+    const themeToggle = document.getElementById('theme-toggle');
 
-    // Initialize Markdown Preview
+    // Real-time preview
     function updatePreview() {
-        if (window.marked && typeof window.marked.parse === 'function') {
-            markdownPreview.innerHTML = window.marked.parse(markdownInput.value);
+        const markdown = editor.value;
+        const html = marked.parse(markdown);
+        preview.innerHTML = DOMPurify.sanitize(html);
+    }
+    editor.addEventListener('input', () => {
+        updatePreview();
+        isDirty = true;
+    });
+
+    // File operation handlers
+    ipcRenderer.on('new-file', () => {
+        if (isDirty) {
+            if (confirm('Do you want to save changes?')) {
+                saveFile();
+            }
+        }
+        editor.value = '';
+        currentFilePath = null;
+        isDirty = false;
+        updatePreview();
+    });
+
+    ipcRenderer.on('file-opened', (event, { content, path }) => {
+        editor.value = content;
+        currentFilePath = path;
+        isDirty = false;
+        updatePreview();
+    });
+
+    ipcRenderer.on('save-file', () => {
+        saveFile();
+    });
+
+    ipcRenderer.on('save-file-as', (event, filePath) => {
+        saveFileAs(filePath);
+    });
+
+    function saveFile() {
+        if (currentFilePath) {
+            saveFileAs(currentFilePath);
         } else {
-            markdownPreview.innerHTML = "<p>Error: Marked.js library not loaded or 'parse' function unavailable.</p>";
-            console.error("Marked.js or marked.parse is not available.");
+            ipcRenderer.send('show-save-dialog');
         }
     }
 
-    markdownInput.addEventListener('input', updatePreview);
-    updatePreview(); // Initial render
+    function saveFileAs(filePath) {
+        const content = editor.value;
+        ipcRenderer.send('write-file', { filePath, content });
+        currentFilePath = filePath;
+        isDirty = false;
+    }
+
+    ipcRenderer.on('file-saved', () => {
+        console.log('File saved successfully');
+    });
 
     // LLM Drafting
     draftButton.addEventListener('click', async () => {
@@ -37,61 +91,43 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         llmStatus.textContent = `Drafting with ${model}... Please wait.`;
-        llmStatus.style.color = '#555'; // Reset color
+        llmStatus.style.color = '#555';
         draftButton.disabled = true;
 
         try {
-            // Ollama API endpoint
             const OLLAMA_API_ENDPOINT = 'http://localhost:11434/api/generate';
-
             const response = await fetch(OLLAMA_API_ENDPOINT, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    model: model,
-                    prompt: prompt,
-                    stream: false // For simplicity in Phase 1, not using streaming yet
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model, prompt, stream: false })
             });
-
             if (!response.ok) {
                 let errorDetails = `Ollama API error (${response.status}): `;
                 try {
-                    // Try to parse the error response from Ollama
                     const errorData = await response.json();
                     errorDetails += `${errorData.error || response.statusText}`;
                 } catch (e) {
-                    // If parsing fails, use the raw text of the response
                     errorDetails += `${await response.text() || response.statusText}`;
                 }
                 throw new Error(errorDetails);
             }
-
             const data = await response.json();
-            
-            const currentText = markdownInput.value;
-            // Insert a couple of newlines if there's existing text, for better separation
+            const currentText = editor.value;
             const separator = currentText.trim() ? '\n\n' : '';
-            markdownInput.value += separator + data.response.trim(); // Append LLM response
-            
-            updatePreview(); // Update preview with new content
+            editor.value += separator + data.response.trim();
+            updatePreview();
             llmStatus.textContent = 'Drafting complete!';
             llmStatus.style.color = 'green';
-
         } catch (error) {
             console.error('Error drafting with LLM:', error);
-            // Provide a more user-friendly error message
             llmStatus.textContent = `Error: ${error.message}. Please ensure Ollama is running, the model '${model}' is available, and the Ollama server is reachable.`;
             llmStatus.style.color = 'red';
         } finally {
-            draftButton.disabled = false; // Re-enable the button
+            draftButton.disabled = false;
         }
     });
 
     // Toolbar formatting actions
-    const toolbar = document.querySelector('.toolbar');
     if (toolbar) {
         toolbar.addEventListener('click', function(e) {
             if (e.target.closest('.toolbar-btn')) {
@@ -103,26 +139,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleToolbarAction(action) {
-        const textarea = markdownInput;
+        const textarea = editor;
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
-        const selected = textarea.value.substring(start, end);
+        let selected = textarea.value.substring(start, end);
         let before = textarea.value.substring(0, start);
         let after = textarea.value.substring(end);
         let newText = '';
         let cursorPos = start;
 
+        // For bold/italic, trim spaces and preserve them outside the formatting
+        let leadingSpaces = '', trailingSpaces = '';
+        if (action === 'bold' || action === 'italic') {
+            const match = selected.match(/^(\s*)(.*?)(\s*)$/);
+            if (match) {
+                leadingSpaces = match[1];
+                selected = match[2];
+                trailingSpaces = match[3];
+            }
+        }
+
         switch (action) {
             case 'bold':
-                newText = `**${selected || 'bold text'}**`;
-                cursorPos += selected ? 2 : 2;
+                newText = `${leadingSpaces}**${selected || 'bold text'}**${trailingSpaces}`;
+                cursorPos += leadingSpaces.length + 2;
                 break;
             case 'italic':
-                newText = `*${selected || 'italic text'}*`;
-                cursorPos += selected ? 1 : 1;
+                newText = `${leadingSpaces}*${selected || 'italic text'}*${trailingSpaces}`;
+                cursorPos += leadingSpaces.length + 1;
                 break;
             case 'heading':
-                // Add # at the start of the line
                 const lineStart = textarea.value.lastIndexOf('\n', start - 1) + 1;
                 before = textarea.value.substring(0, lineStart);
                 const line = textarea.value.substring(lineStart, end);
@@ -131,7 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 cursorPos = lineStart + 2;
                 break;
             case 'list':
-                // Add - at the start of the line
                 const listLineStart = textarea.value.lastIndexOf('\n', start - 1) + 1;
                 before = textarea.value.substring(0, listLineStart);
                 const listLine = textarea.value.substring(listLineStart, end);
@@ -144,35 +189,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 cursorPos += selected ? 1 : 1;
                 break;
             case 'code-block':
-                newText = `\n\n\n${selected || 'code block'}\n\n`;
+                newText = `\n\n\`\`\`\n${selected || 'code block'}\n\`\`\`\n`;
                 cursorPos = start + 5;
                 break;
             default:
                 return;
         }
-        // Insert the new text
         textarea.value = before + newText + after;
-        // Set cursor/selection
         if (action === 'heading' || action === 'list') {
             textarea.setSelectionRange(cursorPos, cursorPos + (selected ? selected.length : 0));
         } else if (selected) {
-            textarea.setSelectionRange(before.length, before.length + newText.length);
+            textarea.setSelectionRange(cursorPos, cursorPos + selected.length);
         } else {
-            textarea.setSelectionRange(cursorPos, cursorPos + (newText.length - (selected ? selected.length : 0)));
+            textarea.setSelectionRange(cursorPos, cursorPos);
         }
         textarea.focus();
         updatePreview();
     }
 
     // Theme toggle logic
-    const themeToggle = document.getElementById('theme-toggle');
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     function setTheme(dark) {
         document.body.classList.toggle('dark-mode', dark);
         themeToggle.textContent = dark ? '☀️' : '🌙';
         localStorage.setItem('vibe-theme', dark ? 'dark' : 'light');
     }
-    // Load theme preference
     const savedTheme = localStorage.getItem('vibe-theme');
     if (savedTheme === 'dark' || (savedTheme === null && prefersDark)) {
         setTheme(true);
@@ -182,4 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
     themeToggle.addEventListener('click', () => {
         setTheme(!document.body.classList.contains('dark-mode'));
     });
+
+    // Initial preview
+    updatePreview();
 }); 

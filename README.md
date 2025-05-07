@@ -66,6 +66,12 @@ A modern, intuitive markdown authoring app with live preview and local LLM-power
 - Auto-updates
 - Additional native features
 
+## Features
+- **Intuitive formatting toolbar**: Bold and Italic buttons now trim spaces from selection, so formatting works even if you double-click a word (trailing spaces are handled for valid markdown).
+- **Always-visible LLM controls**: The LLM drafting panel is always visible below the editor/preview, no scrolling required.
+- **Responsive layout**: Adapts to different window sizes.
+- **Theme toggle**: Light/dark mode toggle works reliably and remembers your preference.
+
 ---
 
 *Made with ❤️ for a better writing vibe.* 
