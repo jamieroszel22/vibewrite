@@ -89,4 +89,97 @@ document.addEventListener('DOMContentLoaded', () => {
             draftButton.disabled = false; // Re-enable the button
         }
     });
+
+    // Toolbar formatting actions
+    const toolbar = document.querySelector('.toolbar');
+    if (toolbar) {
+        toolbar.addEventListener('click', function(e) {
+            if (e.target.closest('.toolbar-btn')) {
+                const btn = e.target.closest('.toolbar-btn');
+                const action = btn.getAttribute('data-action');
+                handleToolbarAction(action);
+            }
+        });
+    }
+
+    function handleToolbarAction(action) {
+        const textarea = markdownInput;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selected = textarea.value.substring(start, end);
+        let before = textarea.value.substring(0, start);
+        let after = textarea.value.substring(end);
+        let newText = '';
+        let cursorPos = start;
+
+        switch (action) {
+            case 'bold':
+                newText = `**${selected || 'bold text'}**`;
+                cursorPos += selected ? 2 : 2;
+                break;
+            case 'italic':
+                newText = `*${selected || 'italic text'}*`;
+                cursorPos += selected ? 1 : 1;
+                break;
+            case 'heading':
+                // Add # at the start of the line
+                const lineStart = textarea.value.lastIndexOf('\n', start - 1) + 1;
+                before = textarea.value.substring(0, lineStart);
+                const line = textarea.value.substring(lineStart, end);
+                newText = `# ${line || 'Heading'}`;
+                after = textarea.value.substring(end);
+                cursorPos = lineStart + 2;
+                break;
+            case 'list':
+                // Add - at the start of the line
+                const listLineStart = textarea.value.lastIndexOf('\n', start - 1) + 1;
+                before = textarea.value.substring(0, listLineStart);
+                const listLine = textarea.value.substring(listLineStart, end);
+                newText = `- ${listLine || 'List item'}`;
+                after = textarea.value.substring(end);
+                cursorPos = listLineStart + 2;
+                break;
+            case 'inline-code':
+                newText = `\`${selected || 'code'}\``;
+                cursorPos += selected ? 1 : 1;
+                break;
+            case 'code-block':
+                newText = `\n\n\n${selected || 'code block'}\n\n`;
+                cursorPos = start + 5;
+                break;
+            default:
+                return;
+        }
+        // Insert the new text
+        textarea.value = before + newText + after;
+        // Set cursor/selection
+        if (action === 'heading' || action === 'list') {
+            textarea.setSelectionRange(cursorPos, cursorPos + (selected ? selected.length : 0));
+        } else if (selected) {
+            textarea.setSelectionRange(before.length, before.length + newText.length);
+        } else {
+            textarea.setSelectionRange(cursorPos, cursorPos + (newText.length - (selected ? selected.length : 0)));
+        }
+        textarea.focus();
+        updatePreview();
+    }
+
+    // Theme toggle logic
+    const themeToggle = document.getElementById('theme-toggle');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    function setTheme(dark) {
+        document.body.classList.toggle('dark-mode', dark);
+        themeToggle.textContent = dark ? '☀️' : '🌙';
+        localStorage.setItem('vibe-theme', dark ? 'dark' : 'light');
+    }
+    // Load theme preference
+    const savedTheme = localStorage.getItem('vibe-theme');
+    if (savedTheme === 'dark' || (savedTheme === null && prefersDark)) {
+        setTheme(true);
+    } else {
+        setTheme(false);
+    }
+    themeToggle.addEventListener('click', () => {
+        setTheme(!document.body.classList.contains('dark-mode'));
+    });
 }); 

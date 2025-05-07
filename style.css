@@ -172,4 +172,98 @@ body {
     margin-top: 10px;
     font-style: italic;
     min-height: 1.2em;
+}
+
+.toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.toolbar-btn {
+    background: #f4f4f4;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    color: #333;
+}
+.toolbar-btn:hover, .toolbar-btn:focus {
+    background: #e6f0ff;
+    border-color: #007aff;
+    outline: none;
+}
+.toolbar-btn:active {
+    background: #d0e7ff;
+}
+
+.theme-toggle {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    background: #f4f4f4;
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    font-size: 1.3em;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.theme-toggle:hover, .theme-toggle:focus {
+    background: #e6f0ff;
+    border-color: #007aff;
+    outline: none;
+}
+
+body.dark-mode {
+    background-color: #181a1b;
+    color: #e0e0e0;
+}
+body.dark-mode .container {
+    background: none;
+}
+body.dark-mode .editor-pane, body.dark-mode .preview-pane, body.dark-mode .llm-controls {
+    background-color: #23272a;
+    color: #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+body.dark-mode #markdown-input, body.dark-mode .llm-controls input[type="text"], body.dark-mode .llm-controls select {
+    background-color: #181a1b;
+    color: #e0e0e0;
+    border: 1px solid #444;
+}
+body.dark-mode #markdown-preview {
+    background-color: #23272a;
+    border-color: #333;
+}
+body.dark-mode .toolbar-btn {
+    background: #23272a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+}
+body.dark-mode .toolbar-btn:hover, body.dark-mode .toolbar-btn:focus {
+    background: #2c3136;
+    border-color: #007aff;
+}
+body.dark-mode .toolbar-btn:active {
+    background: #1a1d1f;
+}
+body.dark-mode .theme-toggle {
+    background: #23272a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+}
+body.dark-mode .theme-toggle:hover, body.dark-mode .theme-toggle:focus {
+    background: #2c3136;
+    border-color: #007aff;
+}
+body.dark-mode .status-message {
+    color: #b0e0b0;
 } 
