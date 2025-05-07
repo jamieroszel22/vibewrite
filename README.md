@@ -1,4 +1,4 @@
-# Vibe Code Markdown LLM Author
+# Vibe Write
 
 A modern, intuitive markdown authoring app with live preview and local LLM-powered drafting via Ollama. Now available as a desktop application!
 
