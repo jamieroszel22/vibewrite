@@ -71,6 +71,8 @@ A modern, intuitive markdown authoring app with live preview and local LLM-power
 - **Always-visible LLM controls**: The LLM drafting panel is always visible below the editor/preview, no scrolling required.
 - **Responsive layout**: Adapts to different window sizes.
 - **Theme toggle**: Light/dark mode toggle works reliably and remembers your preference.
+- **Improved code block readability in dark mode**: Code blocks have a dark background and light text for better contrast.
+- **Draft Prompt usability**: Pressing Enter in the Draft Prompt field submits the prompt (unless Shift is held for a newline).
 
 ---
 

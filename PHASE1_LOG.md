@@ -53,6 +53,9 @@
 ## Layout updated so LLM controls are always visible without scrolling; responsive design for different screen sizes.
 ## Theme toggle (light/dark) now works reliably and remembers user preference.
 
+## Improved code block readability in dark mode: code blocks now have a dark background and light text for better contrast.
+## Usability: Pressing Enter in the Draft Prompt field now submits the prompt (unless Shift is held for a newline).
+
 ---
 
 *Phase 1 complete! Ready to iterate, experiment, and expand.*

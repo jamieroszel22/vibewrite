@@ -305,6 +305,11 @@ body.dark-mode .theme-toggle:hover, body.dark-mode .theme-toggle:focus {
 body.dark-mode .status-message {
     color: #b0e0b0;
 }
+body.dark-mode #preview pre, body.dark-mode #preview code {
+    background: #181a1b;
+    color: #e0e0e0;
+    border-color: #333;
+}
 
 @media (max-width: 900px) {
     .container {

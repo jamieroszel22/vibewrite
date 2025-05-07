@@ -127,6 +127,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Allow Enter to submit Draft Prompt
+    draftPromptInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            draftButton.click();
+        }
+    });
+
     // Toolbar formatting actions
     if (toolbar) {
         toolbar.addEventListener('click', function(e) {
