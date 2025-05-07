@@ -2,6 +2,8 @@
 
 A modern, intuitive markdown authoring app with live preview and local LLM-powered drafting via Ollama. Now available as a desktop application!
 
+![Vibe Write UI](assets/screenshots/wibewrite.png)
+
 ## Overview
 - **Purpose:** Foster a focused, pleasant writing experience with AI assistance.
 - **Core Features:**
