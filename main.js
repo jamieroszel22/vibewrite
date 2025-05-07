@@ -10,8 +10,9 @@ function createWindow() {
         height: 800,
         title: 'Vibe Write',
         webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
         }
     });
 
@@ -139,6 +140,36 @@ ipcMain.on('show-save-dialog', async (event) => {
     if (filePath) {
         event.reply('save-file-as', filePath);
     }
+});
+
+// Handle LLM drafting
+ipcMain.handle('draft-with-llm', async (event, { model, prompt }) => {
+    try {
+        const response = await fetch('http://localhost:11434/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model, prompt, stream: false })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Ollama API error (${response.status})`);
+        }
+        
+        const data = await response.json();
+        return { success: true, response: data.response };
+    } catch (error) {
+        console.error('Error in LLM drafting:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Handle theme operations
+ipcMain.handle('get-theme', () => {
+    return app.getPath('userData');
+});
+
+ipcMain.on('set-theme', (event, theme) => {
+    // Implement theme setting logic
 });
 
 app.whenReady().then(createWindow);

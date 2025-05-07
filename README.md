@@ -14,6 +14,17 @@ A modern, intuitive markdown authoring app with live preview and local LLM-power
   - Light/dark mode toggle
   - Desktop application (Electron)
 
+## Architecture
+- **Security-First Design:**
+  - Proper context isolation
+  - Secure IPC communication
+  - Protected renderer process
+- **Modular Structure:**
+  - Preload script for secure IPC bridge
+  - Centralized configuration management
+  - Dedicated service modules
+  - Clear separation of concerns
+
 ## Setup
 1. **Prerequisites:**
    - [Ollama](https://ollama.com/) installed and running locally
@@ -63,6 +74,9 @@ A modern, intuitive markdown authoring app with live preview and local LLM-power
 - **Electron issues:** Check Node.js version and dependencies
 
 ## Next Steps
+- Complete modular architecture implementation
+- Add TypeScript support
+- Implement comprehensive testing
 - File system integration (save/load)
 - System tray integration
 - Auto-updates
