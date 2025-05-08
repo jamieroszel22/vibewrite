@@ -1,8 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const { ipcRenderer } = require('electron');
-    const marked = require('marked');
-    const DOMPurify = require('dompurify');
-
     let currentFilePath = null;
     let isDirty = false;
 
@@ -17,10 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeToggle = document.getElementById('theme-toggle');
 
     // Real-time preview
-    function updatePreview() {
+    async function updatePreview() {
         const markdown = editor.value;
-        const html = marked.parse(markdown);
-        preview.innerHTML = DOMPurify.sanitize(html);
+        const html = await window.api.updatePreview(markdown);
+        preview.innerHTML = html;
     }
     editor.addEventListener('input', () => {
         updatePreview();
@@ -28,50 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // File operation handlers
-    ipcRenderer.on('new-file', () => {
-        if (isDirty) {
-            if (confirm('Do you want to save changes?')) {
-                saveFile();
-            }
-        }
-        editor.value = '';
-        currentFilePath = null;
-        isDirty = false;
-        updatePreview();
-    });
-
-    ipcRenderer.on('file-opened', (event, { content, path }) => {
+    window.api.onFileOpened(async (event, { content, path }) => {
         editor.value = content;
         currentFilePath = path;
         isDirty = false;
-        updatePreview();
-    });
-
-    ipcRenderer.on('save-file', () => {
-        saveFile();
-    });
-
-    ipcRenderer.on('save-file-as', (event, filePath) => {
-        saveFileAs(filePath);
-    });
-
-    function saveFile() {
-        if (currentFilePath) {
-            saveFileAs(currentFilePath);
-        } else {
-            ipcRenderer.send('show-save-dialog');
-        }
-    }
-
-    function saveFileAs(filePath) {
-        const content = editor.value;
-        ipcRenderer.send('write-file', { filePath, content });
-        currentFilePath = filePath;
-        isDirty = false;
-    }
-
-    ipcRenderer.on('file-saved', () => {
-        console.log('File saved successfully');
+        await updatePreview();
     });
 
     // LLM Drafting
@@ -95,29 +52,18 @@ document.addEventListener('DOMContentLoaded', () => {
         draftButton.disabled = true;
 
         try {
-            const OLLAMA_API_ENDPOINT = 'http://localhost:11434/api/generate';
-            const response = await fetch(OLLAMA_API_ENDPOINT, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ model, prompt, stream: false })
-            });
-            if (!response.ok) {
-                let errorDetails = `Ollama API error (${response.status}): `;
-                try {
-                    const errorData = await response.json();
-                    errorDetails += `${errorData.error || response.statusText}`;
-                } catch (e) {
-                    errorDetails += `${await response.text() || response.statusText}`;
-                }
-                throw new Error(errorDetails);
+            const result = await window.api.draftWithLLM(model, prompt);
+            
+            if (result.success) {
+                const currentText = editor.value;
+                const separator = currentText.trim() ? '\n\n' : '';
+                editor.value += separator + result.response.trim();
+                await updatePreview();
+                llmStatus.textContent = 'Drafting complete!';
+                llmStatus.style.color = 'green';
+            } else {
+                throw new Error(result.error);
             }
-            const data = await response.json();
-            const currentText = editor.value;
-            const separator = currentText.trim() ? '\n\n' : '';
-            editor.value += separator + data.response.trim();
-            updatePreview();
-            llmStatus.textContent = 'Drafting complete!';
-            llmStatus.style.color = 'green';
         } catch (error) {
             console.error('Error drafting with LLM:', error);
             llmStatus.textContent = `Error: ${error.message}. Please ensure Ollama is running, the model '${model}' is available, and the Ollama server is reachable.`;
@@ -146,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function handleToolbarAction(action) {
+    async function handleToolbarAction(action) {
         const textarea = editor;
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
@@ -212,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
             textarea.setSelectionRange(cursorPos, cursorPos);
         }
         textarea.focus();
-        updatePreview();
+        await updatePreview();
     }
 
     // Theme toggle logic
@@ -220,18 +166,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function setTheme(dark) {
         document.body.classList.toggle('dark-mode', dark);
         themeToggle.textContent = dark ? '☀️' : '🌙';
-        localStorage.setItem('vibe-theme', dark ? 'dark' : 'light');
+        window.api.setTheme(dark ? 'dark' : 'light');
     }
-    const savedTheme = localStorage.getItem('vibe-theme');
-    if (savedTheme === 'dark' || (savedTheme === null && prefersDark)) {
-        setTheme(true);
-    } else {
-        setTheme(false);
-    }
+    
+    // Initialize theme
+    window.api.getTheme().then(theme => {
+        if (theme === 'dark' || (theme === null && prefersDark)) {
+            setTheme(true);
+        } else {
+            setTheme(false);
+        }
+    });
+
     themeToggle.addEventListener('click', () => {
         setTheme(!document.body.classList.contains('dark-mode'));
     });
 
     // Initial preview
-    updatePreview();
+    (async () => { await updatePreview(); })();
 }); 

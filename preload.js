@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld(
         // Window operations
         minimize: () => ipcRenderer.send('minimize-window'),
         maximize: () => ipcRenderer.send('maximize-window'),
-        close: () => ipcRenderer.send('close-window')
+        close: () => ipcRenderer.send('close-window'),
+
+        // Editor operations
+        updatePreview: (content) => ipcRenderer.invoke('update-preview', content)
     }
 ); 
