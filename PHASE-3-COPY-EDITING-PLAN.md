@@ -17,26 +17,25 @@
 
 ## Section 1: Foundation (Common for all LLM-based editing features)
 
+**Status: COMPLETED**
+
 This section covers the initial setup of UI elements and IPC communication required for all subsequent LLM-driven copy editing features.
 
-### F3.0: Basic UI for Copy Editing Trigger & Display
+### F3.0: Basic UI for Copy Editing Trigger & Display **(COMPLETED)**
 
-*   **F3.0.1 (UI - Renderer `index.html`):**
+*   **F3.0.1 (UI - Renderer `index.html`):** (COMPLETED)
     *   Add an "Analyze for Issues" button (or similar).
-*   **F3.0.2 (UI - Renderer `index.html`):**
+*   **F3.0.2 (UI - Renderer `index.html`):** (COMPLETED)
     *   Create a dedicated area (e.g., a sidebar, a collapsible panel below the editor, or a modal) to list suggestions.
     *   Initially, this area will display raw text suggestions, not in-editor highlights.
-*   **Test Criteria (F3.0.1 & F3.0.2):**
-    *   The "Analyze for Issues" button is visible in the UI.
-    *   The dedicated suggestion display area is visible (or can be made visible).
-    *   Clicking the button currently has no action or a placeholder action.
+*   **Test Criteria (F3.0.1 & F3.0.2):** (MET)
 
-*   **F3.0.3 (IPC - `preload.js` & `main.js`):**
+*   **F3.0.3 (IPC - `preload.js` & `main.js`):** (COMPLETED)
     *   Define a new IPC channel in `preload.js`:
         ```javascript
         window.api.invokeCopyAnalysis = (text, analysisType) => ipcRenderer.invoke('invoke-copy-analysis', { text, analysisType });
         ```
-*   **F3.0.4 (IPC - `main.js`):**
+*   **F3.0.4 (IPC - `main.js`):** (COMPLETED)
     *   Create a basic handler in `main.js` for `invoke-copy-analysis`:
         ```javascript
         ipcMain.handle('invoke-copy-analysis', async (event, { text, analysisType }) => {
@@ -45,7 +44,7 @@ This section covers the initial setup of UI elements and IPC communication requi
           return { success: true, message: "Analysis request received (mock response)." };
         });
         ```
-*   **Test Criteria (F3.0.3 & F3.0.4):**
+*   **Test Criteria (F3.0.3 & F3.0.4):** (MET)
     *   Clicking the "Analyze for Issues" button (once connected in `script.js`) triggers the `invoke-copy-analysis` handler in `main.js`.
     *   The `main.js` console logs the received text and `analysisType`.
     *   The renderer process receives the mock success message.
@@ -54,110 +53,43 @@ This section covers the initial setup of UI elements and IPC communication requi
 
 ## Section 2: Iteration 1 - LLM Grammar Check (Paragraph by Paragraph, Suggestion List)
 
+**Status: COMPLETED (Strategy Adapted)**
+
+**Note:** The initial strategy of detailed JSON error reporting from the LLM proved difficult. Adapted to an LLM-based paragraph rewrite followed by a simple whole-paragraph comparison in JS to generate suggestions.
+
 This iteration focuses on implementing grammar checking using the LLM, displaying suggestions in a list, and allowing users to apply them.
 
-### F3.1: Paragraph-based Grammar Analysis & Basic Suggestion Structure
+### F3.1: Paragraph-based Grammar Analysis & Basic Suggestion Structure **(COMPLETED - Adapted Strategy)**
 
-*   **F3.1.1 (Backend - `main.js`):**
-    *   **Modify `invoke-copy-analysis` Handler:**
-        *   If `analysisType` is `"grammar"`, proceed with grammar analysis.
-    *   **Chunking Logic:**
-        *   Split the incoming `text` into paragraphs. A simple split by `\n\n` can be the initial approach. Robust markdown paragraph parsing can be a later refinement if necessary.
-    *   **Prompt Engineering (Grammar - `gemma3:4b`):**
-        *   For each paragraph, craft a precise prompt. Example:
-            ```
-            Analyze ONLY the following paragraph for grammatical errors.
-            Paragraph: "[Insert Paragraph Here]"
+*   **F3.1.1 (Backend - `main.js`):** (COMPLETED - Adapted)
+    *   **Modify `invoke-copy-analysis` Handler:** Handles `analysisType="grammar"`.
+    *   **Chunking Logic:** Splits text into paragraphs.
+    *   **Prompt Engineering (Grammar - `gemma3:4b`):** Prompts LLM to rewrite the paragraph with corrections (plain text output).
+    *   **LLM Interaction:** Loops paragraphs, sends to Ollama, gets rewritten paragraph.
+    *   **Suggestion Aggregation (Simplified):** If rewritten paragraph differs from original, creates *one* suggestion object with the full original and full rewritten paragraph. `diff` library experimented with but not used in final version of this iteration for sub-paragraph suggestions.
+*   **Test Criteria (F3.1.1):** (MET - for adapted strategy)
 
-            If you find errors, return a JSON array of objects. Each object should represent one error and have the following keys:
-            - "originalPhrase": The exact text of the grammatical error from the paragraph.
-            - "explanation": A brief explanation of the error.
-            - "correctedPhrase": The suggested correction for that specific phrase.
+*   **F3.1.2 (Frontend - `script.js`):** (COMPLETED)
+    *   **Trigger Analysis:** Calls `window.api.invokeCopyAnalysis(editorContent, "grammar")`.
+    *   **Display Suggestions:** Displays the single paragraph-level suggestion (original vs. rewritten).
+*   **Test Criteria (F3.1.2):** (MET)
 
-            If there are no errors in this paragraph, return an empty JSON array: [].
-            Do not add any conversational text or introductions. Only return the JSON.
-            Do not rewrite the entire paragraph, only provide corrections for specific phrases.
-            ```
-    *   **LLM Interaction:**
-        *   Loop through each paragraph.
-        *   Send the paragraph and the prompt to the Ollama API (using `gemma3:4b` and a low temperature setting).
-        *   Collect the JSON responses. Handle potential errors from the LLM (e.g., non-JSON response, API errors).
-    *   **Suggestion Aggregation:**
-        *   Combine suggestions from all paragraphs into a single array.
-        *   Each suggestion object should be structured to include contextual information. Example:
-            ```json
-            {
-              "id": "suggestion-uuid-123", // Generate a unique ID
-              "paragraphIndex": 0, // Index of the paragraph in the original document
-              "originalPhrase": "He go to store.",
-              // "offsetInParagraph": 3, // Optional: Character offset if LLM can provide it reliably
-              "explanation": "Subject-verb agreement error.",
-              "correctedPhrase": "goes", // Or more complete if appropriate and reliable
-              "analysisType": "grammar"
-            }
-            ```
-    *   **Return Value:** The handler should return an array of these suggestion objects.
-*   **Test Criteria (F3.1.1):**
-    *   Send multi-paragraph text with known grammatical errors to `invoke-copy-analysis`.
-    *   Verify `main.js` logs show iteration through paragraphs.
-    *   Verify that the LLM is called for each paragraph.
-    *   Verify that the returned data is an array of structured suggestion objects, including `paragraphIndex`, `originalPhrase`, `explanation`, and `correctedPhrase`.
-    *   Test with paragraphs containing no errors (should return an empty array for that paragraph's suggestions).
+### F3.2: Applying a Single Grammar Suggestion (Simple Replacement) **(COMPLETED - Adapted Strategy)**
 
-*   **F3.1.2 (Frontend - `script.js`):**
-    *   **Trigger Analysis:**
-        *   When the "Analyze for Issues" button is clicked, get the current content from the markdown editor.
-        *   Call `window.api.invokeCopyAnalysis(editorContent, "grammar")`.
-    *   **Display Suggestions:**
-        *   When suggestions are received from `main.js`:
-            *   Clear any previous suggestions from the dedicated display area.
-            *   For each suggestion object:
-                *   Create a new list item or element in the display area.
-                *   Display the information clearly (e.g., "Paragraph P+1: Issue with '`originalPhrase`'. Suggestion: '`correctedPhrase`'. Reason: `explanation`.").
-*   **Test Criteria (F3.1.2):**
-    *   Clicking "Analyze for Issues" populates the suggestion display area with grammar suggestions fetched from the backend.
-    *   Paragraph indexing in the display is correct (e.g., "Paragraph 1", "Paragraph 2").
-    *   Suggestions are clearly presented.
-
-### F3.2: Applying a Single Grammar Suggestion (Simple Replacement)
-
-*   **F3.2.1 (UI - Renderer `script.js` / `index.html`):**
-    *   For each suggestion displayed in the list (from F3.1.2), add an "Accept" button.
-*   **F3.2.2 (Logic - Renderer `script.js`):**
-    *   **Event Listener:** Attach an event listener to each "Accept" button.
-    *   **Applying Correction:**
-        *   When "Accept" is clicked for a suggestion, retrieve its details (`paragraphIndex`, `originalPhrase`, `correctedPhrase`).
-        *   **Challenge:** Accurately replacing `originalPhrase` with `correctedPhrase` only within the target paragraph in the main editor's full text.
-        *   **Initial Approach:**
-            1.  Get the full current text from the editor.
-            2.  Split the editor's full text into paragraphs using the same logic as in `main.js` (e.g., `\n\n`).
-            3.  Access the target paragraph string using `paragraphIndex`.
-            4.  Attempt `String.prototype.replace(originalPhrase, correctedPhrase)` on *only* that paragraph's text.
-                *   **Caution:** This is sensitive. `originalPhrase` must be an exact match. LLM variations in `originalPhrase` or overly creative `correctedPhrase` can cause failure or corruption.
-            5.  Reconstruct the full editor text by joining the paragraphs (with the modified one).
-            6.  Update the editor with the new full text.
-            7.  Trigger the live preview update (`updatePreview()`).
-            8.  Remove the accepted suggestion from the list or mark it as "Accepted."
-*   **Test Criteria (F3.2.2):**
-    *   Clicking "Accept" on a suggestion correctly modifies *only* the specified phrase within the correct paragraph in the editor.
-    *   The live preview updates to reflect the change.
-    *   The suggestion is removed or marked as accepted in the UI list.
-    *   Test with various simple and slightly more complex phrases.
-    *   Test edge cases: What if `originalPhrase` appears multiple times in the paragraph? (Initial `replace` will only get the first; this might be acceptable initially or require more sophisticated offset-based replacement later).
-
-*   **F3.2.3 (Refinement - Based on F3.2.2 Testing):**
-    *   This step is crucial if the simple `String.prototype.replace` proves unreliable.
-    *   **More Constrained LLM Prompt:** Further refine the LLM prompt (F3.1.1) to be extremely explicit that `correctedPhrase` must be a direct, minimal replacement for `originalPhrase`. Emphasize returning only the changed segment if possible.
-    *   **Diffing Library:** If necessary, integrate a lightweight client-side text diffing library.
-        *   When "Accept" is clicked, diff `originalPhrase` and `correctedPhrase`.
-        *   Apply only the minimal changes derived from the diff to the `originalPhrase`'s location within the target paragraph. This offers more precise control.
-    *   **Focus on Offset (Advanced):** If the LLM can reliably provide character offsets of `originalPhrase` within the paragraph it analyzed, use this for a much more robust replacement mechanism (e.g., `paragraphText.substring(0, offset) + correctedPhrase + paragraphText.substring(offset + originalPhrase.length)`). This would require prompt adjustments and validation.
+*   **F3.2.1 (UI - Renderer `script.js` / `index.html`):** (COMPLETED)
+    *   Adds an "Accept" button to the paragraph-level suggestion.
+*   **F3.2.2 (Logic - Renderer `script.js`):** (COMPLETED)
+    *   "Accept" replaces the original paragraph in the editor with the LLM's rewritten version.
+    *   Includes safety check for content changes.
+*   **Test Criteria (F3.2.2):** (MET)
+*   **F3.2.3 (Refinement - Based on F3.2.2 testing):** (DEFERRED/ADAPTED)
+    *   Initial complex diffing for sub-phrase replacement was deferred in favor of whole-paragraph replacement which proved robust.
 
 ---
 
 ## Section 3: Iteration 2 - Client-Side Spell Check Integration
 
-This iteration introduces basic, non-LLM spell checking for faster feedback.
+**Status: PENDING**
 
 ### F3.3: Basic JavaScript Spell Checker
 

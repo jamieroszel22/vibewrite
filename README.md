@@ -142,6 +142,7 @@ After building and running the installer (or opening the DMG/AppImage):
 - **Theme toggle**: Light/dark mode toggle works reliably and remembers your preference via local storage.
 - **Improved code block readability in dark mode**: Code blocks have a dark background and light text for better contrast.
 - **Draft Prompt usability**: Pressing Enter in the Draft Prompt field submits the prompt (unless Shift is held for a newline).
+- **LLM-Powered Grammar Assistance**: Get suggestions for grammatical improvements on a paragraph-by-paragraph basis using a local LLM (experimental, `gemma3:4b` by default).
 
 ---
 

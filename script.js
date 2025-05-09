@@ -206,13 +206,89 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Analysis Result from Main Process:', result);
 
                 if (result.success) {
-                    suggestionsList.innerHTML = `<p style="color: green;">Mock Analysis Complete: ${result.message}</p>`;
-                    // Later, we will populate this with actual suggestions:
-                    // if (result.suggestions && result.suggestions.length > 0) {
-                    //     // ... logic to display suggestions ...
-                    // } else {
-                    //     suggestionsList.innerHTML = '<p style="color: #777;">No issues found (mock response).</p>';
-                    // }
+                    // suggestionsList.innerHTML = `<p style="color: green;">Mock Analysis Complete: ${result.message}</p>`;
+                    if (result.suggestions && result.suggestions.length > 0) {
+                        suggestionsList.innerHTML = ''; // Clear previous suggestions
+                        const ul = document.createElement('ul');
+                        ul.style.listStyleType = 'none';
+                        ul.style.paddingLeft = '0';
+                        result.suggestions.forEach(suggestion => {
+                            const li = document.createElement('li');
+                            li.style.borderBottom = '1px solid #eee';
+                            li.style.padding = '8px 0';
+                            li.style.marginBottom = '5px';
+                            li.innerHTML = 
+                                `<strong>Paragraph ${suggestion.paragraphIndex + 1}:</strong> <span style="text-decoration: line-through; color: #999;">${suggestion.originalPhrase}</span><br>
+                                 Suggest: <span style="color: green;">${suggestion.correctedPhrase}</span><br>
+                                 <em>${suggestion.explanation}</em>`;
+                            
+                            const acceptButton = document.createElement('button');
+                            acceptButton.textContent = 'Accept';
+                            acceptButton.style.marginLeft = '10px';
+                            acceptButton.style.padding = '3px 8px';
+                            acceptButton.style.cursor = 'pointer';
+                            // Store data needed for acceptance on the button or li
+                            acceptButton.dataset.paragraphIndex = suggestion.paragraphIndex;
+                            // Storing entire phrases in dataset can be risky if they are huge.
+                            // For now, we assume they are manageable. If not, we might only store an ID and retrieve from an in-memory array.
+                            acceptButton.dataset.originalPhrase = suggestion.originalPhrase; 
+                            acceptButton.dataset.correctedPhrase = suggestion.correctedPhrase;
+                            acceptButton.classList.add('accept-suggestion-btn'); // Class for event delegation
+
+                            li.appendChild(acceptButton);
+                            ul.appendChild(li);
+                        });
+                        suggestionsList.appendChild(ul);
+
+                        // Add event listener for accept buttons (using delegation)
+                        suggestionsList.addEventListener('click', async function(e) {
+                            if (e.target.classList.contains('accept-suggestion-btn')) {
+                                const button = e.target;
+                                const listItem = button.closest('li');
+
+                                const pIndex = parseInt(button.dataset.paragraphIndex);
+                                const originalP = button.dataset.originalPhrase;
+                                const correctedP = button.dataset.correctedPhrase;
+
+                                const currentEditorText = editor.value;
+                                const editorParagraphs = currentEditorText.split('\n\n');
+
+                                if (pIndex < editorParagraphs.length) {
+                                    // Safety check: compare trimmed versions
+                                    if (editorParagraphs[pIndex].trim() === originalP.trim()) {
+                                        editorParagraphs[pIndex] = correctedP; // Replace the paragraph
+                                        editor.value = editorParagraphs.join('\n\n');
+                                        await updatePreview();
+                                        
+                                        // Mark as accepted or remove
+                                        listItem.style.opacity = '0.5';
+                                        button.textContent = 'Accepted';
+                                        button.disabled = true;
+                                        // Or: listItem.remove();
+                                        // After accepting, we might want to clear llmStatus or update it.
+                                        llmStatus.textContent = 'Suggestion accepted.';
+                                        llmStatus.style.color = 'blue';
+                                    } else {
+                                        console.warn('Paragraph content changed since analysis. Suggestion not applied.', 
+                                                     { expectedOriginal: originalP, currentInEditor: editorParagraphs[pIndex] });
+                                        llmStatus.textContent = 'Paragraph changed since analysis. Suggestion not applied.';
+                                        llmStatus.style.color = 'orange';
+                                    }
+                                } else {
+                                    console.error('Paragraph index out of bounds.');
+                                    llmStatus.textContent = 'Error applying suggestion: paragraph index out of bounds.';
+                                    llmStatus.style.color = 'red';
+                                }
+                            }
+                        });
+
+                        llmStatus.textContent = `Analysis complete. Found ${result.suggestions.length} suggestion(s).`;
+                        llmStatus.style.color = 'green';
+                    } else {
+                        suggestionsList.innerHTML = '<p style="color: #777;">No grammar issues found by the LLM.</p>';
+                        llmStatus.textContent = 'Analysis complete. No issues found.';
+                        llmStatus.style.color = 'green';
+                    }
                 } else {
                     throw new Error(result.error || 'Unknown error during analysis.');
                 }

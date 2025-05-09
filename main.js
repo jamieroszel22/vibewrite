@@ -4,6 +4,7 @@ const fs = require('fs');
 const marked = require('marked');
 const DOMPurify = require('dompurify');
 const { JSDOM } = require('jsdom');
+const diff = require('diff');
 
 let mainWindow;
 
@@ -251,10 +252,127 @@ ipcMain.handle('draft-with-llm', async (event, { model, prompt }) => {
 
 // Handle copy analysis requests
 ipcMain.handle('invoke-copy-analysis', async (event, { text, analysisType }) => {
-  console.log(`invoke-copy-analysis: Received text (first 100 chars): "${text.substring(0, 100)}..." for analysisType: '${analysisType}'`);
-  // TODO: Implement actual analysis logic based on analysisType
-  // For now, return a mock success response
-  return { success: true, message: `Analysis request for '${analysisType}' received successfully (mock).`, suggestions: [] };
+  console.log(`invoke-copy-analysis: Received text (length: ${text.length}) for analysisType: '${analysisType}'`);
+  const allSuggestions = [];
+  let suggestionIdCounter = 0;
+
+  if (analysisType === "grammar") {
+    try {
+      const paragraphs = text.split('\n\n');
+
+      console.log(`Split into ${paragraphs.length} paragraphs.`);
+
+      for (let i = 0; i < paragraphs.length; i++) {
+        const paragraph = paragraphs[i].trim();
+        if (!paragraph) continue;
+
+        console.log(`Analyzing paragraph ${i + 1}/${paragraphs.length}...`);
+
+        const rewritingPrompt = `Correct any grammatical errors in the following paragraph. Only return the corrected paragraph text. Do not add any commentary, explanations, or conversational text.
+
+Original Paragraph:
+"""
+${paragraph.replace(/"/g, '\\"')}
+"""
+
+Corrected Paragraph:`;
+        
+        if (typeof fetchFn !== 'function') {
+            console.error('Ollama API call error (grammar): fetchFn is not a function.');
+            // Fallback for fetchFn as before...
+            try {
+                const nodeFetch = await import('node-fetch');
+                fetchFn = nodeFetch.default;
+                if (typeof fetchFn !== 'function') {
+                     console.error('Re-initialization of fetchFn with node-fetch also failed (grammar).');
+                     throw new Error('fetchFn is not available for Ollama API call (grammar).');
+                }
+                console.log('Successfully re-initialized fetchFn with node-fetch (grammar).');
+            } catch (importError) {
+                console.error('Error importing node-fetch during re-initialization (grammar):', importError);
+                throw new Error('fetchFn could not be initialized for Ollama API call (grammar).');
+            }
+        }
+        
+        const response = await fetchFn('http://127.0.0.1:11434/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            model: 'gemma3:4b', 
+            prompt: rewritingPrompt,
+            stream: false,
+            options: { temperature: 0.2 }
+          })
+        });
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.error(`Ollama API error for paragraph ${i + 1}: ${response.status} - ${errorBody}`);
+          continue; 
+        }
+
+        const responseDataText = await response.text();        
+        try {
+            const ollamaResponse = JSON.parse(responseDataText);
+            let correctedParagraphText = "";
+            let paragraphSuggestions = [];
+
+            if (ollamaResponse.response) {
+                correctedParagraphText = ollamaResponse.response.trim();
+                console.log(`Paragraph ${i + 1} Original: "${paragraph}"`);
+                console.log(`Paragraph ${i + 1} Corrected by LLM: "${correctedParagraphText}"`);
+
+                // F3.X.2: Diffing logic starts here
+                if (paragraph.trim() !== correctedParagraphText.trim()) {
+                    // const changes = diff.diffWordsWithSpace(paragraph, correctedParagraphText);
+                    // console.log(`Paragraph ${i + 1} Diffs (raw words):`, JSON.stringify(changes, null, 2));
+
+                    // RADICAL SIMPLIFICATION: One suggestion for the whole paragraph if it changed.
+                    allSuggestions.push({
+                        id: `suggestion-${++suggestionIdCounter}`,
+                        paragraphIndex: i,
+                        originalPhrase: paragraph.trim(), // Entire original paragraph
+                        offsetInParagraph: 0,
+                        explanation: "The LLM suggests rewriting this paragraph for grammatical improvements.", 
+                        correctedPhrase: correctedParagraphText.trim(), // Entire corrected paragraph
+                        analysisType: 'grammar'
+                    });
+                    
+                    // The complex diff processing loop below is now bypassed by this simpler approach.
+                    /*
+                    let currentOriginalPos = 0;
+                    let partIndex = 0;
+                    while (partIndex < changes.length) {
+                        // ... (previous complex diff loop) ...
+                    }
+
+                    if (paragraphSuggestions.length > 0) {
+                        allSuggestions.push(...paragraphSuggestions);
+                    }
+                    */
+                }
+            } else {
+                console.log(`Paragraph ${i + 1}: No 'response' field in Ollama output.`);
+                console.log(`Paragraph ${i + 1} Original: "${paragraph}"`);
+                console.log(`Paragraph ${i + 1} Corrected by LLM: [COULD NOT GET CORRECTION]`);
+            }
+        } catch (e) {
+          console.error(`Error processing Ollama response for paragraph ${i + 1}: ${e}. Raw text: ${responseDataText.substring(0,200)}...`);
+        }
+      }
+
+      console.log(`Total suggestions aggregated: ${allSuggestions.length}`);
+      return { success: true, suggestions: allSuggestions };
+
+    } catch (error) {
+      console.error('Error during grammar analysis in invoke-copy-analysis:', error);
+      if (error.stack) console.error(error.stack);
+      return { success: false, error: error.message, suggestions: [] };
+    }
+  } else {
+    console.warn(`invoke-copy-analysis: Received unknown analysisType: '${analysisType}'`);
+    return { success: false, message: `Analysis type '${analysisType}' not supported.`, suggestions: [] };
+  }
 });
 
 // Handle theme operations
