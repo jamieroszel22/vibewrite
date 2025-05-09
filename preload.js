@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld(
         
         // LLM operations
         draftWithLLM: (model, prompt) => ipcRenderer.invoke('draft-with-llm', { model, prompt }),
+        invokeCopyAnalysis: (text, analysisType) => ipcRenderer.invoke('invoke-copy-analysis', { text, analysisType }),
         
         // Theme operations
         getTheme: () => ipcRenderer.invoke('get-theme'),

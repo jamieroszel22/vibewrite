@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const llmStatus = document.getElementById('llm-status');
     const toolbar = document.querySelector('.toolbar');
     const themeToggle = document.getElementById('theme-toggle');
+    const analyzeButton = document.getElementById('analyze-button');
+    const suggestionsList = document.getElementById('suggestions-list');
 
     // Real-time preview
     async function updatePreview() {
@@ -184,4 +186,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial preview
     (async () => { await updatePreview(); })();
+
+    // Analyze Text
+    if (analyzeButton) {
+        analyzeButton.addEventListener('click', async () => {
+            const textToAnalyze = editor.value;
+            if (!textToAnalyze.trim()) {
+                suggestionsList.innerHTML = '<p style="color: #777;">Editor is empty. Nothing to analyze.</p>';
+                return;
+            }
+
+            suggestionsList.innerHTML = '<p style="color: #555;">Analyzing text for issues...</p>';
+            analyzeButton.disabled = true;
+
+            try {
+                // For this initial test, we'll use "grammar" as the analysisType
+                // This aligns with F3.1 (Iteration 1: LLM Grammar Check)
+                const result = await window.api.invokeCopyAnalysis(textToAnalyze, "grammar");
+                console.log('Analysis Result from Main Process:', result);
+
+                if (result.success) {
+                    suggestionsList.innerHTML = `<p style="color: green;">Mock Analysis Complete: ${result.message}</p>`;
+                    // Later, we will populate this with actual suggestions:
+                    // if (result.suggestions && result.suggestions.length > 0) {
+                    //     // ... logic to display suggestions ...
+                    // } else {
+                    //     suggestionsList.innerHTML = '<p style="color: #777;">No issues found (mock response).</p>';
+                    // }
+                } else {
+                    throw new Error(result.error || 'Unknown error during analysis.');
+                }
+            } catch (error) {
+                console.error('Error during text analysis:', error);
+                suggestionsList.innerHTML = `<p style="color: red;">Error during analysis: ${error.message}</p>`;
+            } finally {
+                analyzeButton.disabled = false;
+            }
+        });
+    }
 }); 

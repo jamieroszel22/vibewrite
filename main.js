@@ -249,6 +249,14 @@ ipcMain.handle('draft-with-llm', async (event, { model, prompt }) => {
     }
 });
 
+// Handle copy analysis requests
+ipcMain.handle('invoke-copy-analysis', async (event, { text, analysisType }) => {
+  console.log(`invoke-copy-analysis: Received text (first 100 chars): "${text.substring(0, 100)}..." for analysisType: '${analysisType}'`);
+  // TODO: Implement actual analysis logic based on analysisType
+  // For now, return a mock success response
+  return { success: true, message: `Analysis request for '${analysisType}' received successfully (mock).`, suggestions: [] };
+});
+
 // Handle theme operations
 ipcMain.handle('get-theme', () => {
     // This seems to be returning the userData path, not the theme.
