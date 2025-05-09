@@ -27,6 +27,14 @@
         </div>
     </div>
 
+    <div id="suggestions-container" style="margin-top: 15px; padding: 10px; border: 1px solid #ccc;"> 
+        <h3>Analysis Suggestions</h3>
+        <div id="suggestions-list" style="max-height: 200px; overflow-y: auto;">
+            <!-- Suggestions will be listed here -->
+            <p style="color: #777;">No suggestions yet. Click "Analyze for Issues" to get started.</p>
+        </div>
+    </div>
+
     <div class="llm-controls">
         <h3>LLM Drafting</h3>
         <div>
@@ -53,6 +61,7 @@
             </select>
         </div>
         <button id="draft-button">Draft with LLM</button>
+        <button id="analyze-button" style="margin-top: 5px;">Analyze for Issues</button>
         <div id="llm-status" class="status-message"></div>
     </div>
 
