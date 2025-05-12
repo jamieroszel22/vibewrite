@@ -13,12 +13,17 @@ A modern, intuitive markdown authoring app with live preview and local LLM-power
   - Formatting toolbar for quick markdown syntax
   - Light/dark mode toggle
   - Desktop application (Electron)
+  - LLM-powered grammar checking (with inline diff display)
+  - Local spell checking with suggestions
+  - Security-first design with strict CSP
 
 ## Architecture
 - **Security-First Design:**
   - Proper context isolation using Electron's `preload` scripts.
   - Secure IPC communication between main and renderer processes.
   - Protected renderer process (Node.js integration disabled).
+  - Strict Content Security Policy (CSP) implementation.
+  - Local dependencies to minimize external resource requirements.
 - **Modular Structure:**
   - Preload script (`preload.js`) acts as a secure bridge for IPC.
   - Main process (`main.js`) handles application lifecycle, native OS interactions, and backend tasks (like LLM communication and Markdown parsing).
@@ -105,6 +110,10 @@ After building and running the installer (or opening the DMG/AppImage):
   1. Enter a prompt (e.g., "Write an intro about AI").
   2. Select an available model from the dropdown (these are pulled from your local Ollama instance).
   3. Click "Draft with LLM" — the response is appended to your markdown.
+- **Grammar Checking:**
+  1. Click "Analyze for Issues" to check your text for grammatical errors.
+  2. Review suggestions in the Analysis panel. Suggestions are displayed with inline highlighting of changes (additions in green, deletions in red).
+  3. Click "Apply Suggestion for Paragraph X" to apply corrections for the entire paragraph.
 - **Formatting:** Use the toolbar buttons for quick markdown syntax.
 - **Theme:** Toggle between light and dark mode using the button in the top right.
 - **Status messages** will indicate LLM drafting progress and any errors.
@@ -113,6 +122,7 @@ After building and running the installer (or opening the DMG/AppImage):
 - The dropdown lists models currently available to your local Ollama instance. Ensure the model names (including tags like `:latest`) are correctly reflected if you modify the HTML or dynamically populate this list.
 - For general text, try models like `granite3.3:latest` or `phi4:latest`.
 - For reasoning, `phi4-reasoning:latest` can be effective.
+- For grammar checking, `gemma3:4b` is used by default.
 
 ## Troubleshooting
 - **Ollama not running:** Start Ollama (e.g., `ollama serve` in your terminal). If it's already running, you might see a "port in use" error, which is fine.
@@ -126,6 +136,17 @@ After building and running the installer (or opening the DMG/AppImage):
     - Ensure Node.js and npm are correctly installed and versions are compatible.
     - If you encounter errors after pulling new code, try deleting `node_modules` and `package-lock.json`, then run `npm install` again.
 
+## Features
+- **Intuitive formatting toolbar**: Bold and Italic buttons now trim spaces from selection, so formatting works even if you double-click a word (trailing spaces are handled for valid markdown).
+- **Always-visible LLM controls**: The LLM drafting panel is always visible below the editor/preview, no scrolling required.
+- **Responsive layout**: Adapts to different window sizes.
+- **Theme toggle**: Light/dark mode toggle works reliably and remembers your preference via local storage.
+- **Improved code block readability in dark mode**: Code blocks have a dark background and light text for better contrast.
+- **Draft Prompt usability**: Pressing Enter in the Draft Prompt field submits the prompt (unless Shift is held for a newline).
+- **LLM-Powered Grammar Assistance**: Get suggestions for grammatical improvements on a paragraph-by-paragraph basis using a local LLM (experimental, `gemma3:4b` by default). Changes are shown via inline diff highlighting.
+- **Local Spell Checking**: Built-in spell checker with word suggestions and one-click corrections.
+- **Security-First Design**: Strict Content Security Policy and local dependencies for enhanced security.
+
 ## Next Steps
 - Complete modular architecture implementation.
 - Add TypeScript support.
@@ -134,15 +155,9 @@ After building and running the installer (or opening the DMG/AppImage):
 - System tray integration.
 - Auto-updates for the application.
 - Explore additional native desktop features.
-
-## Features
-- **Intuitive formatting toolbar**: Bold and Italic buttons now trim spaces from selection, so formatting works even if you double-click a word (trailing spaces are handled for valid markdown).
-- **Always-visible LLM controls**: The LLM drafting panel is always visible below the editor/preview, no scrolling required.
-- **Responsive layout**: Adapts to different window sizes.
-- **Theme toggle**: Light/dark mode toggle works reliably and remembers your preference via local storage.
-- **Improved code block readability in dark mode**: Code blocks have a dark background and light text for better contrast.
-- **Draft Prompt usability**: Pressing Enter in the Draft Prompt field submits the prompt (unless Shift is held for a newline).
-- **LLM-Powered Grammar Assistance**: Get suggestions for grammatical improvements on a paragraph-by-paragraph basis using a local LLM (experimental, `gemma3:4b` by default).
+- Enhance grammar checking with word-level diffing.
+- Add support for custom dictionaries in spell checking.
+- Implement inline highlighting for suggestions.
 
 ---
 

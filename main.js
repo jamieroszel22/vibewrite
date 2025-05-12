@@ -65,6 +65,22 @@ function createWindow() {
         }
     });
 
+    // Set Content Security Policy
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+        callback({
+            responseHeaders: {
+                ...details.responseHeaders,
+                'Content-Security-Policy': [
+                    "default-src 'self';",
+                    "script-src 'self' https://cdn.jsdelivr.net;",
+                    "style-src 'self' 'unsafe-inline';",
+                    "img-src 'self' data:;",
+                    "connect-src 'self' http://localhost:11434;"
+                ].join(' ')
+            }
+        });
+    });
+
     mainWindow.loadFile('index.html');
     createMenu();
 }
@@ -315,42 +331,27 @@ Corrected Paragraph:`;
         try {
             const ollamaResponse = JSON.parse(responseDataText);
             let correctedParagraphText = "";
-            let paragraphSuggestions = [];
 
             if (ollamaResponse.response) {
                 correctedParagraphText = ollamaResponse.response.trim();
                 console.log(`Paragraph ${i + 1} Original: "${paragraph}"`);
                 console.log(`Paragraph ${i + 1} Corrected by LLM: "${correctedParagraphText}"`);
 
-                // F3.X.2: Diffing logic starts here
+                // F3.X.2: Diffing logic - Generate ONE suggestion per changed paragraph, including the diff array
                 if (paragraph.trim() !== correctedParagraphText.trim()) {
-                    // const changes = diff.diffWordsWithSpace(paragraph, correctedParagraphText);
-                    // console.log(`Paragraph ${i + 1} Diffs (raw words):`, JSON.stringify(changes, null, 2));
-
-                    // RADICAL SIMPLIFICATION: One suggestion for the whole paragraph if it changed.
+                    const changes = diff.diffWordsWithSpace(paragraph.trim(), correctedParagraphText.trim());
+                    console.log(`Paragraph ${i + 1} Diffs generated.`); // Simplified log
+                    
+                    // Create a single suggestion object for the entire paragraph
                     allSuggestions.push({
                         id: `suggestion-${++suggestionIdCounter}`,
                         paragraphIndex: i,
-                        originalPhrase: paragraph.trim(), // Entire original paragraph
-                        offsetInParagraph: 0,
-                        explanation: "The LLM suggests rewriting this paragraph for grammatical improvements.", 
-                        correctedPhrase: correctedParagraphText.trim(), // Entire corrected paragraph
+                        originalParagraph: paragraph.trim(), // Store the full original
+                        correctedParagraph: correctedParagraphText.trim(), // Store the full corrected
+                        changes: changes, // Include the diff array
                         analysisType: 'grammar'
                     });
-                    
-                    // The complex diff processing loop below is now bypassed by this simpler approach.
-                    /*
-                    let currentOriginalPos = 0;
-                    let partIndex = 0;
-                    while (partIndex < changes.length) {
-                        // ... (previous complex diff loop) ...
-                    }
-
-                    if (paragraphSuggestions.length > 0) {
-                        allSuggestions.push(...paragraphSuggestions);
-                    }
-                    */
-                }
+                } 
             } else {
                 console.log(`Paragraph ${i + 1}: No 'response' field in Ollama output.`);
                 console.log(`Paragraph ${i + 1} Original: "${paragraph}"`);

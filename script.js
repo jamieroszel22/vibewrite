@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const analyzeButton = document.getElementById('analyze-button');
     const suggestionsList = document.getElementById('suggestions-list');
 
+    let currentSuggestions = []; // Variable to hold the suggestions array
+
     // Real-time preview
     async function updatePreview() {
         const markdown = editor.value;
@@ -200,101 +202,93 @@ document.addEventListener('DOMContentLoaded', () => {
             analyzeButton.disabled = true;
 
             try {
-                // For this initial test, we'll use "grammar" as the analysisType
-                // This aligns with F3.1 (Iteration 1: LLM Grammar Check)
+                // Always perform grammar check now
                 const result = await window.api.invokeCopyAnalysis(textToAnalyze, "grammar");
-                console.log('Analysis Result from Main Process:', result);
+                
+                if (result.success && result.suggestions && result.suggestions.length > 0) {
+                    currentSuggestions = result.suggestions; // Store suggestions
+                    
+                    suggestionsList.innerHTML = currentSuggestions.map(suggestion => {
+                        // Generate HTML with inline diff highlights
+                        let diffHtml = suggestion.changes.map(part => {
+                            const value = part.value.replace(/\n/g, '<br>'); // Handle newlines in diff display
+                            if (part.added) {
+                                return `<ins class="diff-added">${value}</ins>`;
+                            } else if (part.removed) {
+                                return `<del class="diff-removed">${value}</del>`;
+                            } else {
+                                return `<span>${value}</span>`;
+                            }
+                        }).join('');
 
-                if (result.success) {
-                    // suggestionsList.innerHTML = `<p style="color: green;">Mock Analysis Complete: ${result.message}</p>`;
-                    if (result.suggestions && result.suggestions.length > 0) {
-                        suggestionsList.innerHTML = ''; // Clear previous suggestions
-                        const ul = document.createElement('ul');
-                        ul.style.listStyleType = 'none';
-                        ul.style.paddingLeft = '0';
-                        result.suggestions.forEach(suggestion => {
-                            const li = document.createElement('li');
-                            li.style.borderBottom = '1px solid #eee';
-                            li.style.padding = '8px 0';
-                            li.style.marginBottom = '5px';
-                            li.innerHTML = 
-                                `<strong>Paragraph ${suggestion.paragraphIndex + 1}:</strong> <span style="text-decoration: line-through; color: #999;">${suggestion.originalPhrase}</span><br>
-                                 Suggest: <span style="color: green;">${suggestion.correctedPhrase}</span><br>
-                                 <em>${suggestion.explanation}</em>`;
-                            
-                            const acceptButton = document.createElement('button');
-                            acceptButton.textContent = 'Accept';
-                            acceptButton.style.marginLeft = '10px';
-                            acceptButton.style.padding = '3px 8px';
-                            acceptButton.style.cursor = 'pointer';
-                            // Store data needed for acceptance on the button or li
-                            acceptButton.dataset.paragraphIndex = suggestion.paragraphIndex;
-                            // Storing entire phrases in dataset can be risky if they are huge.
-                            // For now, we assume they are manageable. If not, we might only store an ID and retrieve from an in-memory array.
-                            acceptButton.dataset.originalPhrase = suggestion.originalPhrase; 
-                            acceptButton.dataset.correctedPhrase = suggestion.correctedPhrase;
-                            acceptButton.classList.add('accept-suggestion-btn'); // Class for event delegation
-
-                            li.appendChild(acceptButton);
-                            ul.appendChild(li);
-                        });
-                        suggestionsList.appendChild(ul);
-
-                        // Add event listener for accept buttons (using delegation)
-                        suggestionsList.addEventListener('click', async function(e) {
-                            if (e.target.classList.contains('accept-suggestion-btn')) {
-                                const button = e.target;
-                                const listItem = button.closest('li');
-
-                                const pIndex = parseInt(button.dataset.paragraphIndex);
-                                const originalP = button.dataset.originalPhrase;
-                                const correctedP = button.dataset.correctedPhrase;
-
-                                const currentEditorText = editor.value;
-                                const editorParagraphs = currentEditorText.split('\n\n');
-
-                                if (pIndex < editorParagraphs.length) {
-                                    // Safety check: compare trimmed versions
-                                    if (editorParagraphs[pIndex].trim() === originalP.trim()) {
-                                        editorParagraphs[pIndex] = correctedP; // Replace the paragraph
-                                        editor.value = editorParagraphs.join('\n\n');
-                                        await updatePreview();
+                        return `
+                            <div class="suggestion-item" data-suggestion-id="${suggestion.id}">
+                                <p><strong>Suggested Correction (Paragraph ${suggestion.paragraphIndex + 1}):</strong></p>
+                                <div class="diff-view">${diffHtml}</div> 
+                                <button class="apply-suggestion" 
+                                        data-suggestion-id="${suggestion.id}"
+                                        data-paragraph-index="${suggestion.paragraphIndex}" 
                                         
-                                        // Mark as accepted or remove
-                                        listItem.style.opacity = '0.5';
-                                        button.textContent = 'Accepted';
-                                        button.disabled = true;
-                                        // Or: listItem.remove();
-                                        // After accepting, we might want to clear llmStatus or update it.
-                                        llmStatus.textContent = 'Suggestion accepted.';
-                                        llmStatus.style.color = 'blue';
-                                    } else {
-                                        console.warn('Paragraph content changed since analysis. Suggestion not applied.', 
-                                                     { expectedOriginal: originalP, currentInEditor: editorParagraphs[pIndex] });
-                                        llmStatus.textContent = 'Paragraph changed since analysis. Suggestion not applied.';
-                                        llmStatus.style.color = 'orange';
-                                    }
-                                } else {
-                                    console.error('Paragraph index out of bounds.');
-                                    llmStatus.textContent = 'Error applying suggestion: paragraph index out of bounds.';
-                                    llmStatus.style.color = 'red';
+                                        > 
+                                    Apply Suggestion for Paragraph ${suggestion.paragraphIndex + 1}
+                                </button>
+                            </div>
+                        `;
+                    }).join('');
+
+                    // Add event listeners to suggestion buttons
+                    document.querySelectorAll('.apply-suggestion').forEach(button => {
+                        button.addEventListener('click', () => {
+                            const suggestionId = button.dataset.suggestionId;
+                            const paragraphIndex = parseInt(button.dataset.paragraphIndex, 10);
+                            
+                            // Find the suggestion object using the ID
+                            const suggestion = currentSuggestions.find(s => s.id === suggestionId);
+
+                            if (!suggestion) {
+                                console.error(`Could not find suggestion data for ID: ${suggestionId}`);
+                                button.disabled = true;
+                                button.textContent = "Error: Data Missing";
+                                return;
+                            }
+                            
+                            const correctedParagraph = suggestion.correctedParagraph; // Get the corrected paragraph from the stored object
+                            
+                            const editorText = editor.value;
+                            const paragraphs = editorText.split('\n\n');
+                            
+                            if (paragraphs[paragraphIndex] !== undefined) {
+                                // Replace the entire paragraph
+                                paragraphs[paragraphIndex] = correctedParagraph;
+                                
+                                editor.value = paragraphs.join('\n\n');
+                                updatePreview();
+                                
+                                // Remove the applied suggestion from the list
+                                const suggestionElement = suggestionsList.querySelector(`div[data-suggestion-id="${suggestionId}"]`);
+                                if (suggestionElement) suggestionElement.remove();
+
+                                // Check if list is empty
+                                if (suggestionsList.children.length === 0) {
+                                     suggestionsList.innerHTML = '<p style="color: #777;">No suggestions remaining.</p>';
                                 }
+                            } else {
+                                console.error(`Could not apply suggestion ${suggestionId}: Paragraph index ${paragraphIndex} out of bounds.`);
+                                // Optionally disable button or show error
+                                button.disabled = true;
+                                button.textContent = "Error: Invalid Index";
                             }
                         });
-
-                        llmStatus.textContent = `Analysis complete. Found ${result.suggestions.length} suggestion(s).`;
-                        llmStatus.style.color = 'green';
-                    } else {
-                        suggestionsList.innerHTML = '<p style="color: #777;">No grammar issues found by the LLM.</p>';
-                        llmStatus.textContent = 'Analysis complete. No issues found.';
-                        llmStatus.style.color = 'green';
-                    }
+                    });
+                } else if (result.error) {
+                    suggestionsList.innerHTML = `<p style="color: red;">Error: ${result.error}</p>`;
                 } else {
-                    throw new Error(result.error || 'Unknown error during analysis.');
+                    suggestionsList.innerHTML = '<p style="color: #777;">No grammar issues found.</p>';
                 }
+                
             } catch (error) {
-                console.error('Error during text analysis:', error);
-                suggestionsList.innerHTML = `<p style="color: red;">Error during analysis: ${error.message}</p>`;
+                console.error('Error analyzing text:', error);
+                suggestionsList.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
             } finally {
                 analyzeButton.disabled = false;
             }

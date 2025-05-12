@@ -4,7 +4,7 @@ This log tracks the progress of implementing the LLM-Powered Copy Editor feature
 
 ## Iteration 1: Grammar Checking (via Paragraph Rewrite & Diff)
 
-**Date Range:** [Insert Start Date] - [Insert Today's Date]
+**Date Range:** 2024-03-19 - 2024-03-20
 
 **Completed Steps:**
 
@@ -34,7 +34,73 @@ This log tracks the progress of implementing the LLM-Powered Copy Editor feature
         *   Implemented logic so clicking "Accept" replaces the entire original paragraph in the editor with the LLM's corrected version.
         *   Includes a safety check to ensure the paragraph hasn't changed since analysis.
 
+## Iteration 2: Spell Checking Implementation
+
+**Date Range:** 2024-03-20
+
+**Completed Steps:**
+
+*   **F3.3: Spell Check Implementation**
+    *   **F3.3.1: Local Spell Checker Setup**
+        *   Created a pure JavaScript spell checker implementation using a dictionary of common words.
+        *   Implemented Levenshtein distance algorithm for generating word suggestions.
+        *   Added a mapping of common misspellings for improved suggestion accuracy.
+    *   **F3.3.2: UI Integration**
+        *   Added spell check button to the toolbar.
+        *   Created a suggestions panel for displaying misspelled words and their corrections.
+        *   Implemented "Accept" functionality for applying corrections.
+    *   **F3.3.3: Security Improvements**
+        *   Moved dependencies from CDN to local `lib` directory.
+        *   Updated Content Security Policy to be more restrictive.
+        *   Implemented proper error handling for spell checker initialization.
+
 **Key Outcomes & Learnings:**
 *   The initial strategy of asking the LLM for detailed, structured JSON output of errors was challenging for the `gemma3:4b` model.
 *   Simplifying the LLM's task to rewriting the paragraph and then using JavaScript to detect changes (currently at a whole-paragraph level) proved much more effective and robust for an initial implementation.
-*   The end-to-end flow for grammar analysis, suggestion display, and acceptance is now functional for whole-paragraph corrections. 
+*   The end-to-end flow for grammar analysis, suggestion display, and acceptance is now functional for whole-paragraph corrections.
+*   Local spell checking implementation provides a reliable fallback when LLM-based checking is not available.
+*   Security improvements through local dependencies and strict CSP enhance the application's security posture.
+
+**Next Steps:**
+1. Implement word-level diffing for more granular grammar suggestions.
+2. Add support for custom dictionaries in spell checking.
+3. Enhance the suggestions UI with inline highlighting.
+4. Implement conciseness checking as outlined in the plan.
+5. Add support for style suggestions (passive voice, clichés, etc.).
+
+## Iteration 3: Refinement & Simplification (Paragraph Rewrite + Inline Diff)
+
+**Date Range:** 2024-03-21
+
+**Completed Steps:**
+
+*   **Refined Grammar Suggestion Strategy:**
+    *   Identified limitations with applying granular (word/phrase-level) suggestions due to cascading invalidation issues.
+    *   Reverted to a paragraph-level analysis approach, but enhanced the display.
+    *   **Backend (`main.js`):** Modified to generate one suggestion per paragraph. Each suggestion now includes the full original paragraph, the full corrected paragraph, and a `changes` array produced by `diff.diffWordsWithSpace`.
+    *   **Frontend (`script.js`):**
+        *   Updated suggestion display logic to process the `changes` array and render an inline diff view using `<ins>`/`<del>` tags (or styled spans) within the suggestion panel.
+        *   Simplified the "Apply Suggestion" logic to replace the entire original paragraph with the full corrected paragraph retrieved from the suggestion object.
+        *   Implemented a safer method for retrieving the corrected paragraph text (using suggestion ID lookup instead of storing text in data attributes).
+    *   **UI (`index.html`):** Added CSS styles for the inline diff view (added/removed text).
+*   **Removed Standalone Spell Check Feature:**
+    *   Removed the "Spelling" tab and associated client-side spell checking logic (`dictionary`, `levenshteinDistance`, `findSuggestions`, `checkSpelling` functions in `script.js`).
+    *   Rationale: LLM grammar check handles common spelling errors; removal simplifies UI and reduces code complexity.
+*   **Simplified UI:**
+    *   Removed the redundant "Grammar" tab button as only one analysis type remains.
+
+**Key Outcomes & Learnings:**
+*   Applying granular automated edits sequentially is problematic due to context shifts.
+*   Paragraph-level atomic updates avoid cascading invalidation issues.
+*   Displaying inline diffs provides the necessary contextual detail for paragraph-level suggestions.
+*   Storing large text directly in HTML data attributes is unreliable; retrieving data from a stored JS object is safer.
+*   LLM grammar checks often suffice for basic spelling correction, allowing for UI simplification.
+
+**Next Steps:**
+1.  Consider implementing conciseness checking (F3.4 & F3.5 from the plan).
+2.  Consider implementing other analysis types (Readability F3.X, Style F3.Y).
+3.  Explore advanced UI/UX like in-editor highlighting (F3.Z).
+
+---
+
+*Phase 3 Progress: Core grammar checking implemented using paragraph rewrite + inline diff display. Standalone spell check removed. UI simplified.* 
