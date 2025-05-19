@@ -116,39 +116,33 @@ This iteration focuses on implementing grammar checking using the LLM, displayin
 
 ## Section 4: Iteration 3 - Conciseness (Paragraph by Paragraph, Suggestion List)
 
-This iteration adds LLM-based analysis for conciseness, following a similar pattern to the grammar check.
+**Status: COMPLETED (Integrated into Grammar Analysis)**
 
-### F3.4: LLM Conciseness Analysis
+**Note:** Instead of implementing conciseness as a separate feature, it has been integrated into the grammar analysis flow. This simplifies the UI and provides a more cohesive user experience.
 
-*   **(Follows pattern of F3.1)**
-*   **F3.4.1 (Backend - `main.js`):**
-    *   In the `invoke-copy-analysis` handler, if `analysisType` is `"conciseness"`:
-    *   **Prompt Engineering (Conciseness - `gemma3:4b`):**
-        *   For each paragraph, craft a prompt asking the LLM to:
-            *   Identify filler words, redundant phrases, or wordy sentences.
-            *   For each issue, provide the `originalPhrase`.
-            *   Provide an `explanation` (e.g., "This phrase is wordy," "Filler word").
-            *   Provide a `suggestedConcisePhrase`.
-        *   Ensure the LLM returns this as a JSON array of objects (similar to grammar).
-    *   Aggregate suggestions with `paragraphIndex`, unique `id`, `analysisType: "conciseness"`, etc.
-*   **F3.4.2 (Frontend - `script.js`):**
-    *   When "Analyze for Issues" is clicked (perhaps with a new option for analysis type, or analyze for all types), call `window.api.invokeCopyAnalysis(editorContent, "conciseness")`.
-    *   Display conciseness suggestions in the dedicated list area, clearly marked or distinguished from grammar suggestions.
-*   **Test Criteria (F3.4.1 & F3.4.2):**
-    *   Send text with known wordiness or filler words.
-    *   Verify `main.js` and LLM interaction for conciseness.
-    *   Conciseness suggestions (with `originalPhrase`, `explanation`, `suggestedConcisePhrase`) populate the UI list.
+### F3.4: LLM Conciseness Analysis **(COMPLETED - Integrated)**
 
-### F3.5: Applying Conciseness Suggestions
+*   **F3.4.1 (Backend - `main.js`):** (COMPLETED)
+    *   Enhanced the grammar analysis prompt to include conciseness and clarity improvements
+    *   Added specific criteria for improvements:
+        - Grammar errors (subject-verb agreement, tense consistency)
+        - Wordiness and redundancy
+        - Clarity issues (unclear references, awkward phrasing)
+    *   Improved response validation and error handling
+*   **F3.4.2 (Frontend - `script.js`):** (COMPLETED)
+    *   Updated suggestion display to handle combined improvements
+    *   Added validation of suggestion data
+    *   Improved error handling and user feedback
+    *   Added visual feedback during suggestion application
+    *   Prevented concurrent suggestion applications
 
-*   **(Follows pattern of F3.2)**
-*   **F3.5.1 (UI & Logic - Renderer `script.js`):**
-    *   Add "Accept" buttons to conciseness suggestions.
-    *   Implement replacement logic similar to F3.2.2, being mindful of potential LLM creativity. The strategies from F3.2.3 (constrained prompts, diffing) are equally important here.
-*   **Test Criteria (F3.5.1):**
-    *   Accepting conciseness suggestions correctly modifies the text in the editor.
-    *   The text becomes more concise as intended.
-    *   Live preview updates.
+### F3.5: Applying Conciseness Suggestions **(COMPLETED - Integrated)**
+
+*   **F3.5.1 (UI & Logic - Renderer `script.js`):** (COMPLETED)
+    *   Added proper async/await handling
+    *   Improved error handling with try/catch
+    *   Added button state management during processing
+    *   Enhanced error messages and UI feedback
 
 ---
 
