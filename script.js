@@ -202,67 +202,95 @@ document.addEventListener('DOMContentLoaded', () => {
             analyzeButton.disabled = true;
 
             try {
-                // Always perform grammar check now
-                const result = await window.api.invokeCopyAnalysis(textToAnalyze, "grammar");
+                // Always perform improvement check now
+                const result = await window.api.invokeCopyAnalysis(textToAnalyze, "improvement");
                 
                 if (result.success && result.suggestions && result.suggestions.length > 0) {
-                    currentSuggestions = result.suggestions; // Store suggestions
+                    currentSuggestions = result.suggestions;
+                    suggestionsList.innerHTML = ''; // Clear previous suggestions
                     
-                    suggestionsList.innerHTML = currentSuggestions.map(suggestion => {
-                        // Generate HTML with inline diff highlights
-                        let diffHtml = suggestion.changes.map(part => {
-                            const value = part.value.replace(/\n/g, '<br>'); // Handle newlines in diff display
-                            if (part.added) {
-                                return `<ins class="diff-added">${value}</ins>`;
-                            } else if (part.removed) {
-                                return `<del class="diff-removed">${value}</del>`;
-                            } else {
-                                return `<span>${value}</span>`;
-                            }
-                        }).join('');
+                    // Remove any existing event listeners
+                    const oldButtons = suggestionsList.querySelectorAll('.apply-suggestion');
+                    oldButtons.forEach(button => {
+                        button.replaceWith(button.cloneNode(true));
+                    });
+                    
+                    result.suggestions.forEach(suggestion => {
+                        // Validate suggestion data
+                        if (!suggestion.id || typeof suggestion.paragraphIndex !== 'number' || 
+                            !suggestion.originalParagraph || !suggestion.correctedParagraph || 
+                            !Array.isArray(suggestion.changes)) {
+                            console.error('Invalid suggestion data:', suggestion);
+                            return;
+                        }
 
-                        return `
-                            <div class="suggestion-item" data-suggestion-id="${suggestion.id}">
-                                <p><strong>Suggested Correction (Paragraph ${suggestion.paragraphIndex + 1}):</strong></p>
-                                <div class="diff-view">${diffHtml}</div> 
-                                <button class="apply-suggestion" 
-                                        data-suggestion-id="${suggestion.id}"
-                                        data-paragraph-index="${suggestion.paragraphIndex}" 
-                                        
-                                        > 
-                                    Apply Suggestion for Paragraph ${suggestion.paragraphIndex + 1}
-                                </button>
-                            </div>
-                        `;
-                    }).join('');
+                        const suggestionDiv = document.createElement('div');
+                        suggestionDiv.className = 'suggestion';
+                        suggestionDiv.dataset.suggestionId = suggestion.id;
+                        
+                        // Create diff view
+                        const diffView = document.createElement('div');
+                        diffView.className = 'diff-view';
+                        
+                        suggestion.changes.forEach(change => {
+                            if (change.added) {
+                                const ins = document.createElement('ins');
+                                ins.textContent = change.value;
+                                diffView.appendChild(ins);
+                            } else if (change.removed) {
+                                const del = document.createElement('del');
+                                del.textContent = change.value;
+                                diffView.appendChild(del);
+                            } else {
+                                const span = document.createElement('span');
+                                span.textContent = change.value;
+                                diffView.appendChild(span);
+                            }
+                        });
+                        
+                        suggestionDiv.appendChild(diffView);
+                        
+                        // Add apply button
+                        const applyButton = document.createElement('button');
+                        applyButton.className = 'apply-suggestion';
+                        applyButton.textContent = 'Apply Improvement';
+                        applyButton.dataset.suggestionId = suggestion.id;
+                        applyButton.dataset.paragraphIndex = suggestion.paragraphIndex;
+                        suggestionDiv.appendChild(applyButton);
+                        
+                        suggestionsList.appendChild(suggestionDiv);
+                    });
 
                     // Add event listeners to suggestion buttons
                     document.querySelectorAll('.apply-suggestion').forEach(button => {
-                        button.addEventListener('click', () => {
+                        button.addEventListener('click', async () => {
                             const suggestionId = button.dataset.suggestionId;
                             const paragraphIndex = parseInt(button.dataset.paragraphIndex, 10);
                             
-                            // Find the suggestion object using the ID
-                            const suggestion = currentSuggestions.find(s => s.id === suggestionId);
+                            // Disable all apply buttons during processing
+                            document.querySelectorAll('.apply-suggestion').forEach(btn => btn.disabled = true);
+                            button.textContent = 'Applying...';
+                            
+                            try {
+                                // Find the suggestion object using the ID
+                                const suggestion = currentSuggestions.find(s => s.id === suggestionId);
 
-                            if (!suggestion) {
-                                console.error(`Could not find suggestion data for ID: ${suggestionId}`);
-                                button.disabled = true;
-                                button.textContent = "Error: Data Missing";
-                                return;
-                            }
-                            
-                            const correctedParagraph = suggestion.correctedParagraph; // Get the corrected paragraph from the stored object
-                            
-                            const editorText = editor.value;
-                            const paragraphs = editorText.split('\n\n');
-                            
-                            if (paragraphs[paragraphIndex] !== undefined) {
+                                if (!suggestion) {
+                                    throw new Error(`Could not find suggestion data for ID: ${suggestionId}`);
+                                }
+                                
+                                const correctedParagraph = suggestion.correctedParagraph;
+                                const editorText = editor.value;
+                                const paragraphs = editorText.split('\n\n');
+                                
+                                if (paragraphs[paragraphIndex] === undefined) {
+                                    throw new Error(`Paragraph index ${paragraphIndex} out of bounds`);
+                                }
+
                                 // Replace the entire paragraph
                                 paragraphs[paragraphIndex] = correctedParagraph;
-                                
                                 editor.value = paragraphs.join('\n\n');
-                                updatePreview();
+                                await updatePreview();
                                 
                                 // Remove the applied suggestion from the list
                                 const suggestionElement = suggestionsList.querySelector(`div[data-suggestion-id="${suggestionId}"]`);
@@ -270,20 +298,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
                                 // Check if list is empty
                                 if (suggestionsList.children.length === 0) {
-                                     suggestionsList.innerHTML = '<p style="color: #777;">No suggestions remaining.</p>';
+                                    suggestionsList.innerHTML = '<p style="color: #777;">No suggestions remaining.</p>';
                                 }
-                            } else {
-                                console.error(`Could not apply suggestion ${suggestionId}: Paragraph index ${paragraphIndex} out of bounds.`);
-                                // Optionally disable button or show error
-                                button.disabled = true;
-                                button.textContent = "Error: Invalid Index";
+                            } catch (error) {
+                                console.error('Error applying suggestion:', error);
+                                button.textContent = `Error: ${error.message}`;
+                                button.style.backgroundColor = '#ff4444';
+                            } finally {
+                                // Re-enable remaining buttons
+                                document.querySelectorAll('.apply-suggestion').forEach(btn => {
+                                    if (btn !== button) btn.disabled = false;
+                                });
                             }
                         });
                     });
                 } else if (result.error) {
                     suggestionsList.innerHTML = `<p style="color: red;">Error: ${result.error}</p>`;
                 } else {
-                    suggestionsList.innerHTML = '<p style="color: #777;">No grammar issues found.</p>';
+                    suggestionsList.innerHTML = '<p style="color: #777;">No improvements needed.</p>';
                 }
                 
             } catch (error) {

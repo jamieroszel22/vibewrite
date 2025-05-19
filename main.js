@@ -272,41 +272,47 @@ ipcMain.handle('invoke-copy-analysis', async (event, { text, analysisType }) => 
   const allSuggestions = [];
   let suggestionIdCounter = 0;
 
-  if (analysisType === "grammar") {
+  if (analysisType === "improvement") {
     try {
       const paragraphs = text.split('\n\n');
-
       console.log(`Split into ${paragraphs.length} paragraphs.`);
 
       for (let i = 0; i < paragraphs.length; i++) {
         const paragraph = paragraphs[i].trim();
-        if (!paragraph) continue;
+        if (!paragraph) {
+          console.log(`Skipping empty paragraph at index ${i}`);
+          continue;
+        }
 
         console.log(`Analyzing paragraph ${i + 1}/${paragraphs.length}...`);
 
-        const rewritingPrompt = `Correct any grammatical errors in the following paragraph. Only return the corrected paragraph text. Do not add any commentary, explanations, or conversational text.
+        const rewritingPrompt = `Analyze and improve the following paragraph. Look for:
+1. Grammar errors (subject-verb agreement, tense consistency, etc.)
+2. Wordiness and redundancy (remove unnecessary words, simplify phrases)
+3. Clarity issues (unclear references, awkward phrasing)
+
+Return ONLY the improved paragraph text. Do not add any commentary, explanations, or conversational text.
 
 Original Paragraph:
 """
 ${paragraph.replace(/"/g, '\\"')}
 """
 
-Corrected Paragraph:`;
+Improved Paragraph:`;
         
         if (typeof fetchFn !== 'function') {
-            console.error('Ollama API call error (grammar): fetchFn is not a function.');
-            // Fallback for fetchFn as before...
+            console.error('Ollama API call error (improvement): fetchFn is not a function.');
             try {
                 const nodeFetch = await import('node-fetch');
                 fetchFn = nodeFetch.default;
                 if (typeof fetchFn !== 'function') {
-                     console.error('Re-initialization of fetchFn with node-fetch also failed (grammar).');
-                     throw new Error('fetchFn is not available for Ollama API call (grammar).');
+                    console.error('Re-initialization of fetchFn with node-fetch also failed (improvement).');
+                    throw new Error('fetchFn is not available for Ollama API call (improvement).');
                 }
-                console.log('Successfully re-initialized fetchFn with node-fetch (grammar).');
+                console.log('Successfully re-initialized fetchFn with node-fetch (improvement).');
             } catch (importError) {
-                console.error('Error importing node-fetch during re-initialization (grammar):', importError);
-                throw new Error('fetchFn could not be initialized for Ollama API call (grammar).');
+                console.error('Error importing node-fetch during re-initialization (improvement):', importError);
+                throw new Error('fetchFn could not be initialized for Ollama API call (improvement).');
             }
         }
         
@@ -334,28 +340,34 @@ Corrected Paragraph:`;
 
             if (ollamaResponse.response) {
                 correctedParagraphText = ollamaResponse.response.trim();
+                
+                // Validate the response
+                if (!correctedParagraphText || correctedParagraphText.length < 5) {
+                    console.warn(`Paragraph ${i + 1}: LLM returned suspiciously short or empty response`);
+                    continue;
+                }
+
                 console.log(`Paragraph ${i + 1} Original: "${paragraph}"`);
                 console.log(`Paragraph ${i + 1} Corrected by LLM: "${correctedParagraphText}"`);
 
-                // F3.X.2: Diffing logic - Generate ONE suggestion per changed paragraph, including the diff array
+                // Only create suggestion if there are actual changes
                 if (paragraph.trim() !== correctedParagraphText.trim()) {
                     const changes = diff.diffWordsWithSpace(paragraph.trim(), correctedParagraphText.trim());
-                    console.log(`Paragraph ${i + 1} Diffs generated.`); // Simplified log
+                    console.log(`Paragraph ${i + 1} Diffs generated.`);
                     
-                    // Create a single suggestion object for the entire paragraph
                     allSuggestions.push({
                         id: `suggestion-${++suggestionIdCounter}`,
                         paragraphIndex: i,
-                        originalParagraph: paragraph.trim(), // Store the full original
-                        correctedParagraph: correctedParagraphText.trim(), // Store the full corrected
-                        changes: changes, // Include the diff array
-                        analysisType: 'grammar'
+                        originalParagraph: paragraph.trim(),
+                        correctedParagraph: correctedParagraphText.trim(),
+                        changes: changes,
+                        analysisType: 'improvement'
                     });
-                } 
+                } else {
+                    console.log(`Paragraph ${i + 1}: No changes needed.`);
+                }
             } else {
-                console.log(`Paragraph ${i + 1}: No 'response' field in Ollama output.`);
-                console.log(`Paragraph ${i + 1} Original: "${paragraph}"`);
-                console.log(`Paragraph ${i + 1} Corrected by LLM: [COULD NOT GET CORRECTION]`);
+                console.warn(`Paragraph ${i + 1}: No 'response' field in Ollama output.`);
             }
         } catch (e) {
           console.error(`Error processing Ollama response for paragraph ${i + 1}: ${e}. Raw text: ${responseDataText.substring(0,200)}...`);
@@ -366,7 +378,7 @@ Corrected Paragraph:`;
       return { success: true, suggestions: allSuggestions };
 
     } catch (error) {
-      console.error('Error during grammar analysis in invoke-copy-analysis:', error);
+      console.error('Error during improvement analysis:', error);
       if (error.stack) console.error(error.stack);
       return { success: false, error: error.message, suggestions: [] };
     }
